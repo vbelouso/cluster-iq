@@ -4,8 +4,31 @@ import "github.com/RHEcosystemAppEng/cluster-iq/internal/inventory"
 
 // InstanceListResponse represents the API response containing a list of clusters
 type InstanceListResponse struct {
+	Instance []inventory.Instance `json:"instance"`
+}
+
+// InstanceListResponse represents the API response containing a list of clusters
+type InstancesListResponse struct {
 	Count     int                  `json:"count"`
 	Instances []inventory.Instance `json:"instances"`
+}
+
+// NewInstancesListResponse creates a new InstanceListResponse instance and
+// controls if there is any Instance in the incoming list
+func NewInstancesListResponse(instances []inventory.Instance) *InstancesListResponse {
+	numInstances := len(instances)
+
+	// If there is no clusters, an empty array is returned instead of null
+	if numInstances == 0 {
+		instances = []inventory.Instance{}
+	}
+
+	response := InstancesListResponse{
+		Count:     numInstances,
+		Instances: instances,
+	}
+
+	return &response
 }
 
 // NewInstanceListResponse creates a new InstanceListResponse instance and
@@ -19,8 +42,7 @@ func NewInstanceListResponse(instances []inventory.Instance) *InstanceListRespon
 	}
 
 	response := InstanceListResponse{
-		Count:     numInstances,
-		Instances: instances,
+		Instance: instances,
 	}
 
 	return &response

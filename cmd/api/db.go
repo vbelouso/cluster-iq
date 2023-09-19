@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"os"
+
 	"github.com/RHEcosystemAppEng/cluster-iq/internal/inventory"
+	"github.com/jackc/pgx/v5"
 )
 
 const (
@@ -39,88 +44,32 @@ const (
 // getAccounts returns every account in Stock
 func getInstances() ([]inventory.Instance, error) {
 	var instances []inventory.Instance
-	if err := db.Select(&instances, SelectInstancesQuery); err != nil {
+	rows, err := dbpool.Query(context.Background(), SelectInstancesQuery)
+	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
+	instances, err = pgx.CollectRows(rows, pgx.RowToStructByName[inventory.Instance])
+	if err != nil {
+		return nil, err
+	}
+
 	return instances, nil
 }
 
 func getInstanceByID(instanceID string) ([]inventory.Instance, error) {
+	rows, err := dbpool.Query(context.Background(), SelectInstancesByIDQuery, instanceID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		os.Exit(1)
+	}
+
 	var instance inventory.Instance
-	if err := db.Get(&instance, SelectInstancesByIDQuery, instanceID); err != nil {
+	instance, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[inventory.Instance])
+	if err != nil {
 		return nil, err
 	}
+
 	return []inventory.Instance{instance}, nil
-}
-
-func writeInstance(instances []inventory.Instance) error {
-	tx := db.MustBegin()
-	tx.NamedExec(InsertInstanceQuery, instances)
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func deleteInstance(instanceID string) error {
-	tx := db.MustBegin()
-	tx.MustExec(DeleteInstanceQuery, instanceID)
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	return nil
-}
-
-// getClusters returns every cluster in Stock
-func getClusters() ([]inventory.Cluster, error) {
-	var clusters []inventory.Cluster
-	if err := db.Select(&clusters, SelectClustersQuery); err != nil {
-		return nil, err
-	}
-	return clusters, nil
-}
-
-// getClusters returns the clusters in Stock with the requested name
-func getClusterByName(clusterName string) ([]inventory.Cluster, error) {
-	var cluster inventory.Cluster
-	if err := db.Get(&cluster, SelectClustersByNameQuery, clusterName); err != nil {
-		return nil, err
-	}
-	return []inventory.Cluster{cluster}, nil
-}
-
-// getInstancesOnCluster returns the instances belonging to a cluster specified by name
-func getInstancesOnCluster(clusterName string) ([]inventory.Instance, error) {
-	var instances []inventory.Instance
-	if err := db.Select(&instances, SelectInstancesOnClusterQuery, clusterName); err != nil {
-		return nil, err
-	}
-	return instances, nil
-}
-
-// getAccounts returns every account in Stock
-func getAccounts() ([]inventory.Account, error) {
-	var accounts []inventory.Account
-	if err := db.Select(&accounts, SelectAccountsQuery); err != nil {
-		return nil, err
-	}
-	return accounts, nil
-}
-
-// getAccountsByName returns an account by its name in Stock
-func getAccountByName(accountName string) ([]inventory.Account, error) {
-	var account inventory.Account
-	if err := db.Get(&account, SelectAccountsByNameQuery, accountName); err != nil {
-		return nil, err
-	}
-	return []inventory.Account{account}, nil
-}
-
-// getClustersOnAccount returns the clusters belonging to an account specified by name
-func getClustersOnAccount(accountName string) ([]inventory.Cluster, error) {
-	var clusters []inventory.Cluster
-	if err := db.Select(&clusters, SelectClustersOnAccountQuery, accountName); err != nil {
-		return nil, err
-	}
-	return clusters, nil
 }
