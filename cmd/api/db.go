@@ -56,14 +56,14 @@ const (
 )
 
 // joinInstancesTags, converts an array of InstanceDB into an array of inventory.Instance
-func joinInstancesTags(dbinstances []InstanceDB) []inventory.Instance {
+func joinInstancesTags(dbinstances []InstanceDBWithTags) []inventory.Instance {
 	instanceMap := make(map[string]*inventory.Instance)
 	for _, dbinstance := range dbinstances {
 		if _, ok := instanceMap[dbinstance.ID]; ok {
 			// Adding tag to an already read instance
 			instance := instanceMap[dbinstance.ID]
 			instance.AddTag(
-				*inventory.NewTag(dbinstance.TagKey, dbinstance.TagValue, dbinstance.ID),
+				*inventory.NewTag(dbinstance.TagDB.Key, dbinstance.TagDB.Value),
 			)
 		} else {
 			// Adding a new instance to the response
@@ -75,7 +75,7 @@ func joinInstancesTags(dbinstances []InstanceDB) []inventory.Instance {
 				dbinstance.Region,
 				dbinstance.State,
 				dbinstance.ClusterName,
-				[]inventory.Tag{*inventory.NewTag(dbinstance.TagKey, dbinstance.TagValue, dbinstance.ID)},
+				[]inventory.Tag{*inventory.NewTag(dbinstance.TagDB.Key, dbinstance.TagDB.Value)},
 			)
 		}
 	}
@@ -91,31 +91,55 @@ func joinInstancesTags(dbinstances []InstanceDB) []inventory.Instance {
 
 // getAccounts returns every account in Stock
 func getInstances() ([]inventory.Instance, error) {
-	var dbinstances []InstanceDB
+	var dbinstances []InstanceDBWithTags
 	if err := db.Select(&dbinstances, SelectInstancesQuery); err != nil {
 		return nil, err
 	}
 
 	instances := joinInstancesTags(dbinstances)
-
 	return instances, nil
 }
 
 func getInstanceByID(instanceID string) ([]inventory.Instance, error) {
-	var dbinstances []InstanceDB
-	if err := db.Select(&dbinstances, SelectInstancesByIDQuery, instanceID); err != nil {
+	var dbinstances []InstanceDBWithTags
+	query := `
+	SELECT
+		i.id,
+		i.name,
+		i.provider,
+		i.instance_type,
+		i.region,
+		i.state,
+		i.cluster_name,
+		t.key,
+		t.value
+	FROM
+		public.instances i
+	LEFT JOIN
+		public.tags t ON i.id = t.instance_id
+	WHERE
+		i.id = $1;`
+
+	if err := db.Select(&dbinstances, query, instanceID); err != nil {
 		return nil, err
 	}
-
 	instances := joinInstancesTags(dbinstances)
 
 	return instances, nil
 }
 
 func writeInstances(instances []inventory.Instance) error {
-	var tags []inventory.Tag
+	var tags []TagDB
+
 	for _, instance := range instances {
-		tags = append(tags, instance.Tags...)
+		for _, tag := range instance.Tags {
+			tagWithInstanceID := TagDB{
+				Key:        tag.Key,
+				Value:      tag.Value,
+				InstanceID: instance.ID,
+			}
+			tags = append(tags, tagWithInstanceID)
+		}
 	}
 
 	tx, err := db.Beginx()
@@ -175,10 +199,14 @@ func getClusterByName(clusterName string) ([]inventory.Cluster, error) {
 
 // getInstancesOnCluster returns the instances belonging to a cluster specified by name
 func getInstancesOnCluster(clusterName string) ([]inventory.Instance, error) {
-	var instances []inventory.Instance
-	if err := db.Select(&instances, SelectInstancesOnClusterQuery, clusterName); err != nil {
+	var dbinstances []InstanceDBWithTags
+
+	if err := db.Select(&dbinstances, SelectInstancesOnClusterQuery, clusterName); err != nil {
 		return nil, err
 	}
+
+	instances := joinInstancesTags(dbinstances)
+
 	return instances, nil
 }
 

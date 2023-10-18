@@ -24,11 +24,20 @@ type InstanceDB struct {
 
 	// ClusterName
 	ClusterName string `db:"cluster_name"`
+}
 
-	// instance Tags
-	TagKey   string `db:"key"`
-	TagValue string `db:"value"`
+type TagDB struct {
+	// Tag's key
+	Key string `db:"key"`
 
-	// InstanceID from Tags table (not needed, defined just for parsing the join result)
+	// Tag's Value
+	Value string `db:"value"`
+
+	// InstanceName reference
 	InstanceID string `db:"instance_id"`
+}
+
+type InstanceDBWithTags struct {
+	InstanceDB
+	TagDB
 }
