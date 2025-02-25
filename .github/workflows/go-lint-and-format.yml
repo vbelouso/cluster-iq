@@ -1,16 +1,17 @@
 name: 'Go Lint and Format'
-
 on:
   push:
     branches:
       - main
       - release-.*
       - release-.*-rc-.*
+      - feat-gh-lint-u
   pull_request:
     branches:
       - main
       - release-.*
       - release-.*-rc-.*
+      - feat-gh-lint-u
 
 permissions:
   contents: read

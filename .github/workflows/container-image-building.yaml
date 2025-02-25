@@ -9,6 +9,7 @@ on:
       - main
       - release-.*
       - release-.*-rc-.*
+      - feat-gh-lint-u
 jobs:
   setup:
     runs-on: ubuntu-latest
