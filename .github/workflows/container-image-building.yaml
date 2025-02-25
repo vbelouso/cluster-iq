@@ -1,6 +1,6 @@
 on:
   workflow_run:
-    workflows: [Go Lint and Format]
+    workflows: [Go-Lint-and-Format]
     types: [completed]
 
 jobs:
