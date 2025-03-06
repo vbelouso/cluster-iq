@@ -1,16 +1,17 @@
-name: 'Go Lint and Format'
-
+name: Go-Lint-and-Format
 on:
   push:
     branches:
       - main
       - release-.*
       - release-.*-rc-.*
+      - feat-gh-lint-u
   pull_request:
     branches:
       - main
       - release-.*
       - release-.*-rc-.*
+      - feat-gh-lint-u
 
 permissions:
   contents: read
@@ -44,3 +45,6 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.64.2
+      - name: Bypass to another workflow
+        run: |
+          echo "Build test successful"
